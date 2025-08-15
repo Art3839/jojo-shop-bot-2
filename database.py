@@ -212,3 +212,52 @@ async def get_statistics():
             stats['total_revenue'] = row['total'] or 0
             
         return stats
+
+# НОВЫЕ ФУНКЦИИ ДЛЯ РЕДАКТИРОВАНИЯ ТОВАРОВ
+async def get_all_products():
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute('SELECT * FROM products ORDER BY id') as cursor:
+            return await cursor.fetchall()
+
+async def update_product(product_id, name=None, description=None, price=None, category=None, image_path=None):
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        # Строим динамический запрос
+        updates = []
+        params = []
+        
+        if name is not None:
+            updates.append("name = ?")
+            params.append(name)
+        if description is not None:
+            updates.append("description = ?")
+            params.append(description)
+        if price is not None:
+            updates.append("price = ?")
+            params.append(price)
+        if category is not None:
+            updates.append("category = ?")
+            params.append(category)
+        if image_path is not None:
+            updates.append("image_path = ?")
+            params.append(image_path)
+            
+        if updates:
+            params.append(product_id)
+            query = f"UPDATE products SET {', '.join(updates)} WHERE id = ?"
+            await db.execute(query, params)
+            await db.commit()
+            return True
+        return False
+
+async def delete_product(product_id):
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        await db.execute('UPDATE products SET is_active = 0 WHERE id = ?', (product_id,))
+        await db.commit()
+        return True
+
+async def restore_product(product_id):
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        await db.execute('UPDATE products SET is_active = 1 WHERE id = ?', (product_id,))
+        await db.commit()
+        return True
